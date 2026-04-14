@@ -64,7 +64,7 @@ class MyApp extends StatelessWidget {
         //
         // This works for code too, not just values: Most code changes can be
         // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
@@ -74,20 +74,65 @@ class MyApp extends StatelessWidget {
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
   final String title;
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  List<Map<String, dynamic>> deliveries = [
+    {"name": "DoorDash", "delivered": false},
+    {"name": "Uber Eats", "delivered": false},
+    {"name": "Amazon", "delivered": false},
+  ];
+
+  void markDelivered(int index) {
+    setState(() {
+      deliveries[index]["delivered"] = true;
+    });
+
+    // 🔔 Use your friend's notification function
+    showTriggerAlert("${deliveries[index]["name"]} delivered!");
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Delivery Tracker"),
+        backgroundColor: Colors.blue,
+      ),
+      body: ListView.builder(
+        itemCount: deliveries.length,
+        itemBuilder: (context, index) {
+          final item = deliveries[index];
+
+          return Card(
+            margin: EdgeInsets.all(10),
+            child: ListTile(
+              leading: Icon(
+                item["delivered"]
+                    ? Icons.check_circle
+                    : Icons.delivery_dining,
+                color: item["delivered"] ? Colors.green : Colors.grey,
+              ),
+              title: Text(item["name"]),
+              subtitle: Text(
+                item["delivered"] ? "Delivered" : "Pending",
+              ),
+              trailing: ElevatedButton(
+                onPressed: item["delivered"]
+                    ? null
+                    : () => markDelivered(index),
+                child: Text("Deliver"),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
 class _MyHomePageState extends State<MyHomePage> {
