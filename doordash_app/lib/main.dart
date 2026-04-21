@@ -28,6 +28,15 @@ void main() async {
 
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+      IOSFlutterLocalNotificationsPlugin>()
+      ?.requestPermissions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
   runApp(const MyApp());
 }
 /**
@@ -35,7 +44,7 @@ void main() async {
  */
 Future<void> showTriggerAlert(String message) async {
   const NotificationDetails details = NotificationDetails(
-    android: AndroidNotificationDetails('esp_channel', 'ESP32 Alerts', importance: Importance.max, priority: Priority.high),
+    android: AndroidNotificationDetails('esp_channel', 'ESP32 Alerts', importance: Importance.max, priority: Priority.high), iOS: DarwinNotificationDetails(),
   );
   await flutterLocalNotificationsPlugin.show(0, 'ESP32 Alert', message, details);
 }
