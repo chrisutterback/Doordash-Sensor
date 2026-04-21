@@ -82,9 +82,9 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   List<Map<String, dynamic>> deliveries = [
-    {"name": "DoorDash", "delivered": false},
-    {"name": "Uber Eats", "delivered": false},
-    {"name": "Amazon", "delivered": false},
+    {"name": "DoorDash", "delivered": false, "image": "assets/images/DoorDash.png"},
+    {"name": "Uber Eats", "delivered": false, "image": "assets/images/uberEats.png"},
+    {"name": "Amazon", "delivered": false, "image": "assets/images/Amazon.png"},
   ];
 
   void markDelivered(int index) {
@@ -111,11 +111,12 @@ class _MyHomePageState extends State<MyHomePage> {
           return Card(
             margin: EdgeInsets.all(10),
             child: ListTile(
-              leading: Icon(
-                item["delivered"]
-                    ? Icons.check_circle
-                    : Icons.delivery_dining,
-                color: item["delivered"] ? Colors.green : Colors.grey,
+              leading: item["delivered"]
+                  ? Icon(Icons.check_circle, color: Colors.green)
+                  : Image.asset(
+                item["image"],
+                width: 40,
+                height: 40,
               ),
               title: Text(item["name"]),
               subtitle: Text(
