@@ -46,14 +46,24 @@ void main() async {
  *  Helper function to pop up the alert
  */
 Future<void> showTriggerAlert(String message) async {
-  const NotificationDetails details = NotificationDetails(
-    android: AndroidNotificationDetails('esp_channel', 'ESP32 Alerts', importance: Importance.max, priority: Priority.high), iOS: DarwinNotificationDetails(presentAlert: true,
-    presentBadge: true,
-    presentSound: true,),
+  const details = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'esp_channel',
+      'ESP32 Alerts',
+      importance: Importance.max,
+      priority: Priority.high,
+    ),
+    iOS: DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      interruptionLevel: InterruptionLevel.timeSensitive, // 🔥 IMPORTANT
+    ),
   );
+
   await flutterLocalNotificationsPlugin.show(
     DateTime.now().millisecondsSinceEpoch ~/ 1000,
-    'ESP32 Alert',
+    '🚚 Delivery Update',
     message,
     details,
   );
