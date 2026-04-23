@@ -19,6 +19,9 @@ void main() async {
     requestAlertPermission: true,
     requestBadgePermission: true,
     requestSoundPermission: true,
+    defaultPresentAlert: true,
+    defaultPresentBadge: true,
+    defaultPresentSound: true,
   );
 
   // 5. Combine and Initialize
@@ -44,9 +47,16 @@ void main() async {
  */
 Future<void> showTriggerAlert(String message) async {
   const NotificationDetails details = NotificationDetails(
-    android: AndroidNotificationDetails('esp_channel', 'ESP32 Alerts', importance: Importance.max, priority: Priority.high), iOS: DarwinNotificationDetails(),
+    android: AndroidNotificationDetails('esp_channel', 'ESP32 Alerts', importance: Importance.max, priority: Priority.high), iOS: DarwinNotificationDetails(presentAlert: true,
+    presentBadge: true,
+    presentSound: true,),
   );
-  await flutterLocalNotificationsPlugin.show(0, 'ESP32 Alert', message, details);
+  await flutterLocalNotificationsPlugin.show(
+    DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    'ESP32 Alert',
+    message,
+    details,
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -102,6 +112,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
 
     // 🔔 Use your friend's notification function
+    print("NOTIFICATION TRIGGERED");
     showTriggerAlert("${deliveries[index]["name"]} delivered!");
   }
 
