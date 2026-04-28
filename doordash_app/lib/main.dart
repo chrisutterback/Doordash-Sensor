@@ -22,8 +22,8 @@ void main() async {
     defaultPresentAlert: true,
     defaultPresentBadge: true,
     defaultPresentSound: true,
-    defaultPresentBanner: true,  // 👈 add this
-    defaultPresentList: true,    // 👈 add this
+    defaultPresentBanner: true, // 🔥 needed in newer versions
+    defaultPresentList: true,   // 🔥 needed in newer versions
   );
 
   // 5. Combine and Initialize
