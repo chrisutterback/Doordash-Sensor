@@ -113,10 +113,15 @@ class _MyHomePageState extends State<MyHomePage> {
 
     _channel.stream.listen(
           (message) {
+        var parts = message.toString().split(':');
         setState(() {
-          _isConnected = true; // Connected if we're receiving data
+          _isConnected = true;
           _esp32Data = message.toString();
         });
+
+        if (parts[0] == "DELIVERED") {
+          showTriggerAlert("${parts[1]} has been delivered!");
+        }
       },
       onError: (error) {
         setState(() => _isConnected = false);
@@ -148,8 +153,7 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       deliveries[index]["delivered"] = true;
     });
-    print("NOTIFICATION TRIGGERED");
-    showTriggerAlert("${deliveries[index]["name"]} delivered!");
+    showTriggerAlert("${deliveries[index]["name"]} has been delivered!");
   }
 
   @override
