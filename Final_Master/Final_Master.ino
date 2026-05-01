@@ -6,7 +6,25 @@
     created the encryption
 */
 
+// #include <WiFi.h> // connecting to cellular data
+// #include <WebSocketsServer.h> // allows for two-way communication
 
+// const char* ssid = "LloydsPhone"; // Hotspot name
+// const char* password = "password"; // Password to hotspot
+/*  
+  IOS must turn on Maximize Compatibility 
+    because IOS defults to WPA3, and ESP32
+    only works with WPA2 
+*/
+
+//Websocket Setup
+// WebSocketsServer webSocket = WebSocketsServer(81);
+
+// void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
+//   if (type == WStype_CONNECTED) {
+//     Serial.printf("Client %u connected\n", num);
+//   }
+// }
 
 #include <Crypto.h>// encryption
 #include <AES.h>
@@ -113,9 +131,7 @@ void setup() {
     //ESP.restart();
   }
 
-
 }
-
 
 void loop() {
   encryption(); // calls the encryption function 

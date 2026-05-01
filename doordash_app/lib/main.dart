@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 // 1. Create a global instance
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
 void main() async {
-  // 2. Required for any async setup in main
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 3. Android-specific settings (icon must exist in android/app/src/main/res/drawable)
   const AndroidInitializationSettings initializationSettingsAndroid =
   AndroidInitializationSettings('@mipmap/ic_launcher');
 
-  // 4. iOS-specific settings
   const DarwinInitializationSettings initializationSettingsIOS =
   DarwinInitializationSettings(
     requestAlertPermission: true,
@@ -22,36 +20,37 @@ void main() async {
     defaultPresentAlert: true,
     defaultPresentBadge: true,
     defaultPresentSound: true,
-    defaultPresentBanner: true, // 🔥 needed in newer versions
-    defaultPresentList: true,   // 🔥 needed in newer versions
+    defaultPresentBanner: true,
+    defaultPresentList: true,
   );
 
-  // 5. Combine and Initialize
   const InitializationSettings initializationSettings = InitializationSettings(
-    android: initializationSettingsAndroid,
-    iOS: initializationSettingsIOS);
+      android: initializationSettingsAndroid,
+      iOS: initializationSettingsIOS);
 
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
-  await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<
-      IOSFlutterLocalNotificationsPlugin>()
-      ?.requestPermissions(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
+  // await flutterLocalNotificationsPlugin
+  //     .resolvePlatformSpecificImplementation
+  // IOSFlutterLocalNotificationsPlugin>()
+  //     ?.requestPermissions(
+  //   alert: true,
+  //   badge: true,
+  //   sound: true,
+  // );
 
   runApp(const MyApp());
 }
-/**
- *  Helper function to pop up the alert
- */
+
 Future<void> showTriggerAlert(String message) async {
   const NotificationDetails details = NotificationDetails(
-    android: AndroidNotificationDetails('esp_channel', 'ESP32 Alerts', importance: Importance.max, priority: Priority.high), iOS: DarwinNotificationDetails(presentAlert: true,
-    presentBadge: true,
-    presentSound: true,),
+    android: AndroidNotificationDetails('esp_channel', 'ESP32 Alerts',
+        importance: Importance.max, priority: Priority.high),
+    iOS: DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    ),
   );
   await flutterLocalNotificationsPlugin.show(
     DateTime.now().millisecondsSinceEpoch ~/ 1000,
@@ -64,34 +63,17 @@ Future<void> showTriggerAlert(String message) async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Delivery Tracker',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Delivery Tracker'),
     );
   }
 }
-
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
@@ -102,18 +84,70 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+
+  // Replace with your ESP32's IP from Serial Monitor
+  final _channel = WebSocketChannel.connect(
+    Uri.parse('ws://172.20.10.12:81'),
+  );
+
+
+  String _esp32Data = "Waiting for ESP32...";
+
   List<Map<String, dynamic>> deliveries = [
     {"name": "DoorDash", "delivered": false, "image": "assets/images/DoorDash.png"},
     {"name": "Uber Eats", "delivered": false, "image": "assets/images/uberEats.png"},
     {"name": "Amazon", "delivered": false, "image": "assets/images/Amazon.png"},
   ];
 
+  @override
+  void dispose() {
+    _channel.sink.close();
+    super.dispose();
+  }
+
+  bool _isConnected = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _channel.stream.listen(
+          (message) {
+        setState(() {
+          _isConnected = true; // Connected if we're receiving data
+          _esp32Data = message.toString();
+        });
+      },
+      onError: (error) {
+        setState(() => _isConnected = false);
+      },
+      onDone: () {
+        setState(() => _isConnected = false);
+      },
+    );
+  }
+  // @override
+  // void initState() {
+  //   super.initState();
+  //
+  //   // Listen for ESP32 messages
+  //   _channel.stream.listen((message) {
+  //     var parts = message.toString().split(':');
+  //     setState(() {
+  //       _esp32Data = message.toString();
+  //     });
+  //
+  //     // If ESP32 sends "DELIVERED:DoorDash" it triggers the notification
+  //     if (parts[0] == "DELIVERED") {
+  //       showTriggerAlert("${parts[1]} has been delivered!");
+  //     }
+  //   });
+  // }
+
   void markDelivered(int index) {
     setState(() {
       deliveries[index]["delivered"] = true;
     });
-
-    // 🔔 Use your friend's notification function
     print("NOTIFICATION TRIGGERED");
     showTriggerAlert("${deliveries[index]["name"]} delivered!");
   }
@@ -125,36 +159,55 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text("Delivery Tracker"),
         backgroundColor: Colors.blue,
       ),
-      body: ListView.builder(
-        itemCount: deliveries.length,
-        itemBuilder: (context, index) {
-          final item = deliveries[index];
-
-          return Card(
-            margin: EdgeInsets.all(10),
-            child: ListTile(
-              leading: item["delivered"]
-                  ? Icon(Icons.check_circle, color: Colors.green)
-                  : Image.asset(
-                item["image"],
-                width: 40,
-                height: 40,
-              ),
-              title: Text(item["name"]),
-              subtitle: Text(
-                item["delivered"] ? "Delivered" : "Pending",
-              ),
-              trailing: ElevatedButton(
-                onPressed: item["delivered"]
-                    ? null
-                    : () => markDelivered(index),
-                child: Text("Deliver"),
-              ),
+      // Shows what the ESP32 is currently sending at the top
+      body: Column(
+        children: [
+          Container(
+            padding: EdgeInsets.all(10),
+            color: Colors.grey[200],
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.sensors, color: Colors.blue),
+                SizedBox(width: 8),
+                Text("ESP32: $_esp32Data",
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
             ),
-          );
-        },
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: deliveries.length,
+              itemBuilder: (context, index) {
+                final item = deliveries[index];
+
+                return Card(
+                  margin: EdgeInsets.all(10),
+                  child: ListTile(
+                    leading: item["delivered"]
+                        ? Icon(Icons.check_circle, color: Colors.green)
+                        : Image.asset(
+                      item["image"],
+                      width: 40,
+                      height: 40,
+                    ),
+                    title: Text(item["name"]),
+                    subtitle: Text(
+                      item["delivered"] ? "Delivered" : "Pending",
+                    ),
+                    trailing: ElevatedButton(
+                      onPressed: item["delivered"]
+                          ? null
+                          : () => markDelivered(index),
+                      child: Text("Deliver"),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 }
-
