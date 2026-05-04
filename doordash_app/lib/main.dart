@@ -42,20 +42,25 @@ void main() async {
   runApp(const MyApp());
 }
 
-Future<void> showTriggerAlert(String message) async {
+Future<void> showTriggerAlert(String company) async {
   const NotificationDetails details = NotificationDetails(
-    android: AndroidNotificationDetails('esp_channel', 'ESP32 Alerts',
-        importance: Importance.max, priority: Priority.high),
+    android: AndroidNotificationDetails(
+      'esp_channel',
+      'ESP32 Alerts',
+      importance: Importance.max,
+      priority: Priority.high,
+    ),
     iOS: DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
     ),
   );
+
   await flutterLocalNotificationsPlugin.show(
     DateTime.now().millisecondsSinceEpoch ~/ 1000,
-    'ESP32 Alert',
-    message,
+    'Delivery Update',
+    "$company is delivered!",
     details,
   );
 }
@@ -106,21 +111,32 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   bool _isConnected = false;
-
   @override
   void initState() {
     super.initState();
 
     _channel.stream.listen(
           (message) {
-        var parts = message.toString().split(':');
+        final raw = message.toString();
+        final parts = raw.split(':');
+
         setState(() {
           _isConnected = true;
-          _esp32Data = message.toString();
+          _esp32Data = raw;
+
+          if (parts.length >= 2 && parts[0] == "DELIVERED") {
+            final company = parts[1].trim();
+            final index = deliveries.indexWhere(
+                  (d) => d["name"].toString().toLowerCase() == company.toLowerCase(),
+            );
+            if (index != -1) {
+              deliveries[index]["delivered"] = true;
+            }
+          }
         });
 
-        if (parts[0] == "DELIVERED") {
-          showTriggerAlert("${parts[1]} has been delivered!");
+        if (parts.length >= 2 && parts[0] == "DELIVERED") {
+          showTriggerAlert(parts[1].trim());
         }
       },
       onError: (error) {
@@ -153,7 +169,7 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       deliveries[index]["delivered"] = true;
     });
-    showTriggerAlert("${deliveries[index]["name"]} has been delivered!");
+    showTriggerAlert(deliveries[index]["name"]);
   }
 
   @override
@@ -199,11 +215,12 @@ class _MyHomePageState extends State<MyHomePage> {
                     subtitle: Text(
                       item["delivered"] ? "Delivered" : "Pending",
                     ),
-                    trailing: ElevatedButton(
-                      onPressed: item["delivered"]
-                          ? null
-                          : () => markDelivered(index),
-                      child: Text("Deliver"),
+                    trailing: Text(
+                      item["delivered"] ? "Delivered" : "Not Delivered",
+                      style: TextStyle(
+                        color: item["delivered"] ? Colors.green : Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 );
