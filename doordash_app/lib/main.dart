@@ -30,14 +30,14 @@ void main() async {
 
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
-  // await flutterLocalNotificationsPlugin
-  //     .resolvePlatformSpecificImplementation
-  // IOSFlutterLocalNotificationsPlugin>()
-  //     ?.requestPermissions(
-  //   alert: true,
-  //   badge: true,
-  //   sound: true,
-  // );
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+      IOSFlutterLocalNotificationsPlugin>()
+      ?.requestPermissions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
 
   runApp(const MyApp());
 }
