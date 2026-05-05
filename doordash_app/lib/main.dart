@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -89,14 +91,14 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-
-  // Replace with your ESP32's IP from Serial Monitor
-  final _channel = WebSocketChannel.connect(
-    Uri.parse('ws://172.20.10.12:81'),
-  );
-
+  final _urlController = TextEditingController(text: 'ws://172.20.10.12:81');
+  WebSocketChannel? _channel;
+  StreamSubscription? _subscription;
 
   String _esp32Data = "Waiting for ESP32...";
+  String _connectionStatus = "Disconnected";
+  String? _lastError;
+  bool _isConnected = false;
 
   List<Map<String, dynamic>> deliveries = [
     {"name": "DoorDash", "delivered": false, "image": "assets/images/DoorDash.png"},
@@ -105,71 +107,94 @@ class _MyHomePageState extends State<MyHomePage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _connectToEsp32();
+  }
+
+  Future<void> _connectToEsp32() async {
+    final url = _urlController.text.trim();
+    if (url.isEmpty) {
+      setState(() {
+        _connectionStatus = 'Disconnected';
+        _lastError = 'Please enter your ESP32 WebSocket URL.';
+      });
+      return;
+    }
+
+    _subscription?.cancel();
+    _channel?.sink.close();
+
+    try {
+      setState(() {
+        _connectionStatus = 'Connecting...';
+        _lastError = null;
+        _esp32Data = 'Connecting to $url';
+      });
+
+      _channel = WebSocketChannel.connect(Uri.parse(url));
+      _subscription = _channel!.stream.listen(
+        (message) {
+          final raw = message.toString();
+          final parts = raw.split(':');
+
+          setState(() {
+            _isConnected = true;
+            _connectionStatus = 'Connected';
+            _esp32Data = raw;
+
+            if (parts.length >= 2 && parts[0] == 'DELIVERED') {
+              final company = parts[1].trim();
+              final index = deliveries.indexWhere(
+                (d) => d['name'].toString().toLowerCase() == company.toLowerCase(),
+              );
+              if (index != -1) {
+                deliveries[index]['delivered'] = true;
+              }
+            }
+          });
+
+          if (parts.length >= 2 && parts[0] == 'DELIVERED') {
+            showTriggerAlert(parts[1].trim());
+          }
+        },
+        onError: (error) {
+          setState(() {
+            _connectionStatus = 'Error';
+            _lastError = error.toString();
+            _isConnected = false;
+          });
+        },
+        onDone: () {
+          setState(() {
+            _connectionStatus = 'Disconnected';
+            _isConnected = false;
+          });
+        },
+      );
+    } catch (error) {
+      setState(() {
+        _connectionStatus = 'Disconnected';
+        _lastError = error.toString();
+        _isConnected = false;
+        _esp32Data = 'Waiting for ESP32...';
+      });
+    }
+  }
+
+  @override
   void dispose() {
-    _channel.sink.close();
+    _subscription?.cancel();
+    _channel?.sink.close();
+    _urlController.dispose();
     super.dispose();
   }
 
-  bool _isConnected = false;
-  @override
-  void initState() {
-    super.initState();
-
-    _channel.stream.listen(
-          (message) {
-        final raw = message.toString();
-        final parts = raw.split(':');
-
-        setState(() {
-          _isConnected = true;
-          _esp32Data = raw;
-
-          if (parts.length >= 2 && parts[0] == "DELIVERED") {
-            final company = parts[1].trim();
-            final index = deliveries.indexWhere(
-                  (d) => d["name"].toString().toLowerCase() == company.toLowerCase(),
-            );
-            if (index != -1) {
-              deliveries[index]["delivered"] = true;
-            }
-          }
-        });
-
-        if (parts.length >= 2 && parts[0] == "DELIVERED") {
-          showTriggerAlert(parts[1].trim());
-        }
-      },
-      onError: (error) {
-        setState(() => _isConnected = false);
-      },
-      onDone: () {
-        setState(() => _isConnected = false);
-      },
-    );
-  }
-  // @override
-  // void initState() {
-  //   super.initState();
-  //
-  //   // Listen for ESP32 messages
-  //   _channel.stream.listen((message) {
-  //     var parts = message.toString().split(':');
-  //     setState(() {
-  //       _esp32Data = message.toString();
-  //     });
-  //
-  //     // If ESP32 sends "DELIVERED:DoorDash" it triggers the notification
-  //     if (parts[0] == "DELIVERED") {
-  //       showTriggerAlert("${parts[1]} has been delivered!");
-  //     }
-  //   });
-  // }
-
   void markDelivered(int index) {
     setState(() {
-      deliveries[index]["delivered"] = true;
+      deliveries[index]['delivered'] = true;
     });
-    showTriggerAlert(deliveries[index]["name"]);
+    showTriggerAlert(deliveries[index]['name']);
   }
 
   @override
@@ -182,16 +207,68 @@ class _MyHomePageState extends State<MyHomePage> {
       // Shows what the ESP32 is currently sending at the top
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'ESP32 Connection',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _urlController,
+                        decoration: const InputDecoration(
+                          labelText: 'WebSocket URL',
+                          hintText: 'ws://192.168.1.123:81',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.url,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      onPressed: _connectToEsp32,
+                      child: const Text('Connect'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Icon(
+                      _isConnected ? Icons.check_circle : Icons.error,
+                      color: _isConnected ? Colors.green : Colors.orange,
+                    ),
+                    const SizedBox(width: 8),
+                    Text('Status: $_connectionStatus'),
+                  ],
+                ),
+                if (_lastError != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Error: $_lastError',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ],
+                const Divider(height: 24),
+              ],
+            ),
+          ),
           Container(
-            padding: EdgeInsets.all(10),
+            padding: const EdgeInsets.all(10),
             color: Colors.grey[200],
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.sensors, color: Colors.blue),
-                SizedBox(width: 8),
+                const Icon(Icons.sensors, color: Colors.blue),
+                const SizedBox(width: 8),
                 Text("ESP32: $_esp32Data",
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
               ],
             ),
           ),
